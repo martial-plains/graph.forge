@@ -1,0 +1,67 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip2
+      - uses: Swatinem/rust-cache@v2
+      - name: Build
+        id: build
+        run: |
+          cargo build --release --locked --target wasm32-wasip2
+          wasm=$(find target/wasm32-wasip2/release -maxdepth 1 -name '*.wasm' -print -quit)
+          test -n "$wasm"
+          echo "wasm=$wasm" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.repository.name }}-wasm
+          path: ${{ steps.build.outputs.wasm }}
+          if-no-files-found: error
+
+  use-package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip2
+      - uses: Swatinem/rust-cache@v2
+      - name: Install Forge
+        run: cargo install --git https://github.com/martial-plains/forge --package forge-terminal --bin forge --locked
+      - name: Build and load through use_package
+        env:
+          FORGE_CONFIG_DIR: ${{ runner.temp }}/forge-config
+          FORGE_DATA_DIR: ${{ runner.temp }}/forge-data
+        run: |
+          mkdir -p "$FORGE_CONFIG_DIR"
+          name=$(grep -E '^name = "' forge-package.toml | head -n1 | cut -d'"' -f2)
+          test -n "$name"
+          cat > "$FORGE_CONFIG_DIR/init.rhai" <<EOF
+          use_package("$name", #{ vc: "$GITHUB_WORKSPACE" });
+          EOF
+          forge --headless --init "$FORGE_CONFIG_DIR/init.rhai" \
+            --keys "M-x" --type "reload-init-file" --keys "RET" \
+            --wait 2 --keys "y" --wait 2 --keys "y" --wait 2 --keys "y" --wait 600 &
+          forge_pid=$!
+          for _ in $(seq 1 150); do
+            [ -f "$FORGE_CONFIG_DIR/plugins/$name.wasm" ] && break
+            kill -0 "$forge_pid" 2>/dev/null || break
+            sleep 2
+          done
+          test -f "$FORGE_CONFIG_DIR/plugins/$name.wasm"
+          kill "$forge_pid" 2>/dev/null || true
+          wait "$forge_pid" 2>/dev/null || true
+          forge --check-plugin "$FORGE_CONFIG_DIR/plugins/$name.wasm" >/dev/null
