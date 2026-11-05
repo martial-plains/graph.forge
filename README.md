@@ -7,7 +7,7 @@ Add this to `~/.config/forge/init.rhai`:
 
 ```rhai
 use_package("graph", #{
-  vc: "https://github.com/martial-plains/forge-plugin-graph",
+  vc: "https://github.com/martial-plains/graph.forge.git",
   commands: ["graph-global", "graph-local"],
   grant: #{ directories: ["~/Notes"] },
   config: #{ vault: "~/Notes" },
