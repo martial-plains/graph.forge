@@ -8,10 +8,6 @@ license = "GPL-3.0-or-later"
 [package.metadata.forge]
 name = "graph"
 
-[[package.metadata.forge.permissions.directories]]
-path = "~/Notes"
-why = "your notes (the vault whose links are drawn); change it to wherever they are"
-
 # Standalone: not part of the main workspace build.
 [workspace]
 

@@ -40,7 +40,7 @@ jobs:
           targets: wasm32-wasip2
       - uses: Swatinem/rust-cache@v2
       - name: Install Forge
-        run: cargo install --git https://github.com/martial-plains/forge --package forge-terminal --bin forge --locked
+        run: cargo install --git https://github.com/martial-plains/forge forge-terminal --locked
       - name: Build and load through use_package
         env:
           FORGE_CONFIG_DIR: ${{ runner.temp }}/forge-config
